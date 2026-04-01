@@ -31,7 +31,7 @@ def validar_cpf(cpf: str) -> bool:
 # Configuração visual
 st.set_page_config(page_title="Rigo Engenharia - Vistorias", layout="wide")
 st.title("🏗️ Rigo Engenharia")
-st.subheader("Gerador de Laudo de Recebimento de Imóvel")
+st.subheader("Gerador de Laudo de Vistoria Técnica")
 
 # --- BLOCO 1: DADOS DO SOLICITANTE ---
 with st.expander("Dados do Cliente e Imóvel", expanded=True):
