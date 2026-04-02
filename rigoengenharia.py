@@ -28,21 +28,52 @@ def validar_cpf(cpf: str) -> bool:
             return False
     return True
 
-# Configuração visual
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Rigo Engenharia - Vistorias", layout="wide")
-st.title("🏗️ Rigo Engenharia")
-st.subheader("Gerador de Laudo de Vistoria Técnica")
+
+# --- ESTILIZAÇÃO DO BANNER ---
+# Imagem de fundo de construção civil com overlay para legibilidade
+banner_img = "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=2070"
+
+st.markdown(
+    f"""
+    <style>
+    .main-banner {{
+        background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("{banner_img}");
+        background-size: cover;
+        background-position: center;
+        padding: 60px;
+        border-radius: 15px;
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+    }}
+    .main-banner h1 {{
+        font-size: 3.5rem;
+        margin-bottom: 0px;
+        color: #FFFFFF !important;
+    }}
+    .main-banner p {{
+        font-size: 1.5rem;
+        font-weight: 300;
+    }}
+    </style>
+    <div class="main-banner">
+        <h1>🏗️ Rigo Engenharia</h1>
+        <p>Gerador de Laudo de Vistoria Técnica</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- BLOCO 1: DADOS DO SOLICITANTE ---
-with st.expander("Dados do Cliente e Imóvel", expanded=True):
-    # Linha 1: Nome e Número do Laudo
+with st.expander("📋 Dados do Cliente e Imóvel", expanded=True):
     col_n, col_num_laudo = st.columns([3, 1])
     with col_n:
         nome = st.text_input("Nome do Solicitante")
     with col_num_laudo:
         num_laudo = st.text_input("Número do Laudo", placeholder="001")
 
-    # Linha 2: CPF, Apartamento e Torre (Otimizado)
     col_cpf, col_apto, col_torre = st.columns(3)
     with col_cpf:
         cpf_input = st.text_input("CPF (apenas números)")
@@ -76,7 +107,7 @@ if foto_capa:
         dados_cep = buscar_cep(cep_input)
         if dados_cep and "erro" not in dados_cep:
             endereco_formatado = f"{dados_cep.get('logradouro')}, {numero_imovel} – {dados_cep.get('bairro')} {dados_cep.get('localidade')} - {dados_cep.get('uf')}, {dados_cep.get('cep')}"
-            st.success(f"Endereço: {endereco_formatado}")
+            st.success(f"📍 **Endereço identificado:** {endereco_formatado}")
 
 st.write("#### 2. Fotos dos Vícios")
 fotos_vicios = st.file_uploader("Arraste as fotos dos vícios", accept_multiple_files=True, type=['jpg', 'jpeg', 'png'])
@@ -145,7 +176,6 @@ if st.button("🚀 GERAR LAUDO COMPLETO", use_container_width=True):
             doc.save(buffer)
             buffer.seek(0)
             
-            # Nomeação solicitada: LT_NUMERO_NOME.docx
             nome_limpo = nome.strip().upper().replace(" ", "_")
             num_limpo = num_laudo.strip().upper()
             nome_final_doc = f"LT_{num_limpo}_{nome_limpo}.docx"
@@ -155,7 +185,8 @@ if st.button("🚀 GERAR LAUDO COMPLETO", use_container_width=True):
                 label=f"📥 Baixar Laudo {nome_final_doc}",
                 data=buffer,
                 file_name=nome_final_doc,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
             )
         except Exception as e:
             st.error(f"Erro ao processar arquivo: {e}")
