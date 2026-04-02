@@ -1,4 +1,0 @@
-streamlit
-docxtpl
-python-docx
-requests
