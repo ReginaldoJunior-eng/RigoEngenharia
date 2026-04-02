@@ -4,6 +4,11 @@ from docx.shared import Mm
 import io
 import re
 import requests
+from pillow_heif import register_heif_opener
+from PIL import Image
+
+# Habilita suporte a HEIC/HEIF
+register_heif_opener()
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Rigo Engenharia - Portal", layout="wide", page_icon="🏗️")
@@ -27,7 +32,31 @@ def validar_cpf(cpf: str) -> bool:
         if digito != int(cpf[i]): return False
     return True
 
-# --- 3. ESTILIZAÇÃO CSS (Foco em Imagens de Fundo) ---
+def processar_imagem(arquivo):
+    """Converte HEIC/DNG para JPEG para compatibilidade com o Word"""
+    if arquivo is None:
+        return None
+    
+    # Se já for JPG ou PNG, retorna o original para economizar processamento
+    ext = arquivo.name.lower()
+    if ext.endswith(('.jpg', '.jpeg', '.png')):
+        return arquivo
+    
+    # Se for HEIC ou DNG, converte
+    try:
+        img = Image.open(arquivo)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=90)
+        buffer.seek(0)
+        return buffer
+    except Exception as e:
+        st.error(f"Erro ao processar imagem {arquivo.name}: {e}")
+        return None
+
+# --- 3. ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
     .main-banner {
@@ -42,7 +71,6 @@ st.markdown("""
         margin-bottom: 30px;
     }
     
-    /* Estilo dos Cards apenas com Imagem e Texto */
     .service-card {
         height: 350px;
         border-radius: 15px;
@@ -62,7 +90,6 @@ st.markdown("""
         transform: translateY(-10px);
     }
     
-    /* Overlay para garantir leitura do texto sobre a foto */
     .card-overlay {
         position: absolute;
         bottom: 0; left: 0; right: 0; top: 0;
@@ -134,56 +161,22 @@ if st.session_state.pagina == "servicos":
     c1, c2 = st.columns(2)
     c3, c4 = st.columns(2)
     
-    # Imagens focadas em engenharia e segurança
     img_pericia = "https://images.pexels.com/photos/443383/pexels-photo-443383.jpeg?auto=compress&cs=tinysrgb&w=800"
-    
-    # NOVA IMAGEM: Segurança do Trabalho (Capacete técnico sobre planta de engenharia)
-    img_seguranca_nova = "https://images.pexels.com/photos/8961401/pexels-photo-8961401.jpeg?auto=compress&cs=tinysrgb&w=800" 
-    
-    # NOVA IMAGEM: Prevenção de Incêndios (Bombeiros com equipamentos de combate)
-    img_incendio_nova = "https://www.sp.senac.br/documents/51838645/51838647/o+que+faz+um+bombeiro+civil.webp/410add97-73aa-16a2-de35-1ee2822723c6?version=1.0&t=1733407011536"
-    
+    img_seguranca = "https://images.pexels.com/photos/8961401/pexels-photo-8961401.jpeg?auto=compress&cs=tinysrgb&w=800" 
+    img_incendio = "https://www.sp.senac.br/documents/51838645/51838647/o+que+faz+um+bombeiro+civil.webp/410add97-73aa-16a2-de35-1ee2822723c6?version=1.0&t=1733407011536"
     img_patologia = "https://images.pexels.com/photos/2219024/pexels-photo-2219024.jpeg?auto=compress&cs=tinysrgb&w=800"
 
     with c1:
-        st.markdown(f"""
-            <div class="service-card" style="background-image: url('{img_pericia}');">
-                <div class="card-overlay">
-                    <h3>Avaliações e Perícias</h3>
-                    <p>Laudos judiciais, vistorias cautelares de vizinhança e avaliações precisas com rigor técnico.</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="service-card" style="background-image: url(\'{img_pericia}\');"><div class="card-overlay"><h3>Avaliações e Perícias</h3><p>Laudos judiciais, vistorias cautelares de vizinhança e avaliações precisas com rigor técnico.</p></div></div>', unsafe_allow_html=True)
         
     with c2:
-        st.markdown(f"""
-            <div class="service-card" style="background-image: url('{img_seguranca_nova}');">
-                <div class="card-overlay">
-                    <h3>Segurança do Trabalho</h3>
-                    <p>Consultoria técnica em Normas Regulamentadoras (NRs), gestão de riscos ocupacionais e segurança ativa em canteiros de obras.</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="service-card" style="background-image: url(\'{img_seguranca}\');"><div class="card-overlay"><h3>Segurança do Trabalho</h3><p>Consultoria técnica em NRs, gestão de riscos ocupacionais e segurança ativa em canteiros de obras.</p></div></div>', unsafe_allow_html=True)
         
     with c3:
-        st.markdown(f"""
-            <div class="service-card" style="background-image: url('{img_incendio_nova}');">
-                <div class="card-overlay">
-                    <h3>Prevenção de Incêndios</h3>
-                    <p>Projetos técnicos rigorosos para CLCB/AVCB e inspeção técnica detalhada de sistemas de combate a incêndio.</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="service-card" style="background-image: url(\'{img_incendio}\');"><div class="card-overlay"><h3>Prevenção de Incêndios</h3><p>Projetos técnicos rigorosos para CLCB/AVCB e inspeção técnica detalhada de sistemas de combate.</p></div></div>', unsafe_allow_html=True)
         
     with c4:
-        st.markdown(f"""
-            <div class="service-card" style="background-image: url('{img_patologia}');">
-                <div class="card-overlay">
-                    <h3>Patologia das Construções</h3>
-                    <p>Diagnóstico de manifestações patológicas e planos de recuperação para estruturas e reformas.</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="service-card" style="background-image: url(\'{img_patologia}\');"><div class="card-overlay"><h3>Patologia das Construções</h3><p>Diagnóstico de manifestações patológicas e planos de recuperação para estruturas.</p></div></div>', unsafe_allow_html=True)
 
 elif st.session_state.pagina == "inicio":
     st.markdown('<div class="main-banner"><h1>Rigo Engenharia</h1><p>Excelência técnica em diagnósticos e vistorias</p></div>', unsafe_allow_html=True)
@@ -246,8 +239,13 @@ elif st.session_state.pagina == "gerador":
         data_v = st.text_input("Data da Vistoria")
 
     st.header("📸 Registros")
-    foto_capa = st.file_uploader("Foto Fachada", type=['jpg', 'jpeg', 'png'])
+    # Adicionado extensões HEIC e DNG no uploader
+    foto_capa_raw = st.file_uploader("Foto Fachada", type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
     endereco_f = ""
+    
+    # Processa a imagem da capa
+    foto_capa = processar_imagem(foto_capa_raw)
+
     if foto_capa:
         ce_in = st.text_input("CEP")
         if len(ce_in) >= 8:
@@ -256,12 +254,15 @@ elif st.session_state.pagina == "gerador":
                 endereco_f = f"{d.get('logradouro')}, {d.get('localidade')}"
                 st.success(f"📍 {endereco_f}")
 
-    vicios = st.file_uploader("Fotos dos Vícios", accept_multiple_files=True, type=['jpg', 'jpeg', 'png'])
+    vicios_raw = st.file_uploader("Fotos dos Vícios", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
     lista_v = []
-    if vicios:
-        for i, f in enumerate(vicios):
+    if vicios_raw:
+        for i, f in enumerate(vicios_raw):
             leg = st.text_input(f"Legenda Figura {i+1}", key=f"v_{i}")
-            lista_v.append({"foto": f, "legenda": leg})
+            # Processa cada imagem da lista
+            foto_proc = processar_imagem(f)
+            if foto_proc:
+                lista_v.append({"foto": foto_proc, "legenda": leg})
 
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
         try:
@@ -269,7 +270,7 @@ elif st.session_state.pagina == "gerador":
             ctx = {
                 "nome": nome, "cpf": cpf_in, "apartamento": apto, "torre": torre,
                 "data_da_Vis": data_v, "Endereco": endereco_f,
-                "foto_fachada": InlineImage(doc, foto_capa, width=Mm(110)),
+                "foto_fachada": InlineImage(doc, foto_capa, width=Mm(110)) if foto_capa else None,
                 "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(110)), "legenda": x["legenda"]} for x in lista_v]
             }
             doc.render(ctx)
