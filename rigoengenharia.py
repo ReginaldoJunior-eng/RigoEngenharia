@@ -244,7 +244,6 @@ elif st.session_state.pagina == "gerador":
         num_laudo = col_num.text_input("Nº Laudo *", placeholder="001")
         
         c1, c2, c3 = st.columns(3)
-        # --- LÓGICA DE CPF COM VALIDAÇÃO E MÁSCARA ---
         raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11)
         cpf_valido = validar_cpf(raw_cpf)
         cpf_final = formatar_cpf(raw_cpf) if cpf_valido else ""
@@ -285,7 +284,6 @@ elif st.session_state.pagina == "gerador":
                 bairro = d.get('bairro')
                 cidade = d.get('localidade')
                 cep_api = d.get('cep')
-                # Alteração: Removido o prefixo "Bairro:"
                 endereco_f = f"{rua}, nº {num_endereco} - {bairro} - CEP: {cep_api}" if num_endereco else ""
                 if endereco_f:
                     st.success(f"📍 {endereco_f}")
@@ -299,11 +297,9 @@ elif st.session_state.pagina == "gerador":
             leg = st.text_input(f"Legenda Figura {i+1} *", key=f"v_{i}")
             foto_proc = processar_imagem(f)
             if foto_proc and leg:
-                # ACRESCENTADO O ENTER (\n) AO FINAL DA LEGENDA
-                lista_v.append({"foto": foto_proc, "legenda": leg + "\n"})
+                lista_v.append({"foto": foto_proc, "legenda": leg})
 
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
-        # --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
         erros = []
         if not nome: erros.append("Nome do Solicitante")
         if not num_laudo: erros.append("Número do Laudo")
@@ -316,24 +312,22 @@ elif st.session_state.pagina == "gerador":
         if not vicios_raw or len(lista_v) < len(vicios_raw): erros.append("Fotos dos vícios com legendas")
 
         if erros:
-            st.error(f"🚨 **Campos obrigatórios ausentes ou inválidos:**\n\n- " + "\n- ".join(erros))
+            st.error(f"🚨 **Campos obrigatórios ausentes:**- " + "\n- ".join(erros))
         else:
             try:
                 doc = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
+                # AJUSTE: Adicionado \n\n\n para criar espaço de 2 linhas em branco no Word
                 ctx = {
                     "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
                     "data_da_Vis": data_final, "Endereco": endereco_f,
                     "dia_laudo": dia_laudo, "mes_laudo_extenso": mes_extenso, "ano": ano_laudo,
                     "foto_fachada": InlineImage(doc, foto_capa, width=Mm(110)),
-                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(120)), "legenda": x["legenda"]} for x in lista_v]
+                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(140)), "legenda": x["legenda"]} for x in lista_v]
                 }
                 doc.render(ctx)
                 buf = io.BytesIO()
                 doc.save(buf)
-                
-                # NOME DO ARQUIVO ATUALIZADO: LT_{numero}_{nome}.docx
-                nome_arquivo_final = f"LT_{num_laudo}_{nome}.docx"
-                st.download_button("📥 Baixar Laudo", data=buf.getvalue(), file_name=nome_arquivo_final)
+                st.download_button("📥 Baixar Laudo", data=buf.getvalue(), file_name=f"LT_{num_laudo}_{nome}.docx")
                 
             except Exception as e: st.error(f"Erro ao gerar documento: {e}")
 
