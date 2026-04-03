@@ -65,7 +65,7 @@ def processar_imagem(arquivo):
         st.error(f"Erro ao processar imagem {arquivo.name}: {e}")
         return None
 
-# --- 3. ESTILIZAÇÃO CSS ---
+# --- 3. ESTILIZAÇÃO CSS E ANTI-AUTOCOMPLETE ---
 st.markdown("""
     <style>
     .main-banner {
@@ -128,6 +128,16 @@ st.markdown("""
         width: 100%; text-align: left; border: none; background-color: transparent; padding: 10px 0px;
     }
     </style>
+
+    <script>
+        const disableAutocomplete = () => {
+            const inputs = window.parent.document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.setAttribute('autocomplete', 'new-password');
+            });
+        };
+        setInterval(disableAutocomplete, 1000);
+    </script>
     """, unsafe_allow_html=True)
 
 # --- 4. NAVEGAÇÃO LATERAL (SIDEBAR) ---
@@ -152,7 +162,7 @@ with st.sidebar:
     
     st.title("🔒 Área do Engenheiro")
     with st.expander("Acessar Gerador"):
-        senha = st.text_input("Senha de Acesso", type="password")
+        senha = st.text_input("Senha de Acesso", type="password", autocomplete="new-password")
         if senha == "rigo2026":
             if st.button("🚀 Abrir Gerador", use_container_width=True):
                 st.session_state.pagina = "gerador"
@@ -228,8 +238,8 @@ elif st.session_state.pagina == "contato":
     with col_form:
         st.subheader("Solicite um Orçamento")
         with st.form("f_contato"):
-            n = st.text_input("Nome Completo")
-            e = st.text_input("E-mail")
+            n = st.text_input("Nome Completo", autocomplete="new-password")
+            e = st.text_input("E-mail", autocomplete="new-password")
             servico_escolhido = st.selectbox("Qual sua necessidade?", ["Vistoria Cautelar", "Laudo de Recebimento", "Avaliação de Imóvel", "Projeto de Incêndio", "Perícia", "Outros"])
             msg = st.text_area("Descrição")
             if st.form_submit_button("Enviar Pedido", use_container_width=True):
@@ -240,12 +250,12 @@ elif st.session_state.pagina == "gerador":
     
     with st.expander("📋 Dados Base (Obrigatórios)", expanded=True):
         col_n, col_num = st.columns([3, 1])
-        nome = col_n.text_input("Nome do Solicitante *")
-        num_laudo = col_num.text_input("Nº Laudo *", placeholder="001")
+        nome = col_n.text_input("Nome do Solicitante *", autocomplete="new-password")
+        num_laudo = col_num.text_input("Nº Laudo *", placeholder="001", autocomplete="new-password")
         
         c1, c2, c3 = st.columns(3)
         # --- LÓGICA DE CPF COM VALIDAÇÃO E MÁSCARA ---
-        raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11)
+        raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11, autocomplete="new-password")
         cpf_valido = validar_cpf(raw_cpf)
         cpf_final = formatar_cpf(raw_cpf) if cpf_valido else ""
         
@@ -253,19 +263,19 @@ elif st.session_state.pagina == "gerador":
             if cpf_valido: st.success(f"✅ CPF Válido: {cpf_final}")
             else: st.error("❌ CPF Inválido")
 
-        apto = c2.text_input("Apto *")
-        torre = c3.text_input("Torre *")
+        apto = c2.text_input("Apto *", autocomplete="new-password")
+        torre = c3.text_input("Torre *", autocomplete="new-password")
         
         col_data, col_hora = st.columns([3, 1])
-        data_v = col_data.text_input("Data da Vistoria * (Ex: 02/04/2026)")
-        hora_v = col_hora.text_input("Horário *", placeholder="14:00")
+        data_v = col_data.text_input("Data da Vistoria * (Ex: 02/04/2026)", autocomplete="new-password")
+        hora_v = col_hora.text_input("Horário *", placeholder="14:00", autocomplete="new-password")
         data_final = f"{data_v} às {hora_v}" if (data_v and hora_v) else ""
 
         st.write("**Data de Emissão do Laudo: * **")
         ce1, ce2, ce3 = st.columns(3)
-        dia_laudo = ce1.text_input("Dia", value=datetime.now().day)
+        dia_laudo = ce1.text_input("Dia", value=datetime.now().day, autocomplete="new-password")
         mes_extenso = ce2.selectbox("Mês", ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"], index=datetime.now().month - 1)
-        ano_laudo = ce3.text_input("Ano", value=datetime.now().year)
+        ano_laudo = ce3.text_input("Ano", value=datetime.now().year, autocomplete="new-password")
 
     st.header("📸 Registros")
     foto_capa_raw = st.file_uploader("Foto Fachada (Obrigatório) *", type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
@@ -275,8 +285,8 @@ elif st.session_state.pagina == "gerador":
 
     if foto_capa:
         col_cep, col_num_end = st.columns([3, 1])
-        ce_in = col_cep.text_input("CEP *")
-        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123")
+        ce_in = col_cep.text_input("CEP *", autocomplete="new-password")
+        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123", autocomplete="new-password")
         
         if len(ce_in) >= 8:
             d = buscar_cep(ce_in)
@@ -296,7 +306,7 @@ elif st.session_state.pagina == "gerador":
     lista_v = []
     if vicios_raw:
         for i, f in enumerate(vicios_raw):
-            leg = st.text_input(f"Legenda Figura {i+1} *", key=f"v_{i}")
+            leg = st.text_input(f"Legenda Figura {i+1} *", key=f"v_{i}", autocomplete="new-password")
             foto_proc = processar_imagem(f)
             if foto_proc and leg:
                 # ACRESCENTADO O ENTER (\n) AO FINAL DA LEGENDA
