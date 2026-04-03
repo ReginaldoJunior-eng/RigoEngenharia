@@ -65,7 +65,7 @@ def processar_imagem(arquivo):
         st.error(f"Erro ao processar imagem {arquivo.name}: {e}")
         return None
 
-# --- 3. ESTILIZAÇÃO CSS E TRAVA ANTI-AUTOCOMPLETE ---
+# --- 3. ESTILIZAÇÃO CSS E ANTI-AUTOCOMPLETE ---
 st.markdown("""
     <style>
     .main-banner {
@@ -130,13 +130,10 @@ st.markdown("""
     </style>
 
     <script>
-        // Função agressiva para remover sugestões em todos os campos
         const disableAutocomplete = () => {
             const inputs = window.parent.document.querySelectorAll('input');
             inputs.forEach(input => {
-                input.setAttribute('autocomplete', 'one-time-code');
-                input.setAttribute('autocorrect', 'off');
-                input.setAttribute('spellcheck', 'false');
+                input.setAttribute('autocomplete', 'new-password');
             });
         };
         setInterval(disableAutocomplete, 1000);
@@ -165,7 +162,7 @@ with st.sidebar:
     
     st.title("🔒 Área do Engenheiro")
     with st.expander("Acessar Gerador"):
-        senha = st.text_input("Senha de Acesso", type="password", autocomplete="one-time-code")
+        senha = st.text_input("Senha de Acesso", type="password", autocomplete="new-password")
         if senha == "rigo2026":
             if st.button("🚀 Abrir Gerador", use_container_width=True):
                 st.session_state.pagina = "gerador"
@@ -241,8 +238,8 @@ elif st.session_state.pagina == "contato":
     with col_form:
         st.subheader("Solicite um Orçamento")
         with st.form("f_contato"):
-            n = st.text_input("Nome Completo", autocomplete="one-time-code")
-            e = st.text_input("E-mail", autocomplete="one-time-code")
+            n = st.text_input("Nome Completo", autocomplete="new-password")
+            e = st.text_input("E-mail", autocomplete="new-password")
             servico_escolhido = st.selectbox("Qual sua necessidade?", ["Vistoria Cautelar", "Laudo de Recebimento", "Avaliação de Imóvel", "Projeto de Incêndio", "Perícia", "Outros"])
             msg = st.text_area("Descrição")
             if st.form_submit_button("Enviar Pedido", use_container_width=True):
@@ -253,11 +250,12 @@ elif st.session_state.pagina == "gerador":
     
     with st.expander("📋 Dados Base (Obrigatórios)", expanded=True):
         col_n, col_num = st.columns([3, 1])
-        nome = col_n.text_input("Nome do Solicitante *", autocomplete="one-time-code")
-        num_laudo = col_num.text_input("Nº Laudo *", placeholder="001", autocomplete="one-time-code")
+        nome = col_n.text_input("Nome do Solicitante *", autocomplete="new-password")
+        num_laudo = col_num.text_input("Nº Laudo *", placeholder="001", autocomplete="new-password")
         
         c1, c2, c3 = st.columns(3)
-        raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11, autocomplete="one-time-code")
+        # --- LÓGICA DE CPF COM VALIDAÇÃO E MÁSCARA ---
+        raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11, autocomplete="new-password")
         cpf_valido = validar_cpf(raw_cpf)
         cpf_final = formatar_cpf(raw_cpf) if cpf_valido else ""
         
@@ -265,47 +263,57 @@ elif st.session_state.pagina == "gerador":
             if cpf_valido: st.success(f"✅ CPF Válido: {cpf_final}")
             else: st.error("❌ CPF Inválido")
 
-        apto = c2.text_input("Apto *", autocomplete="one-time-code")
-        torre = c3.text_input("Torre *", autocomplete="one-time-code")
+        apto = c2.text_input("Apto *", autocomplete="new-password")
+        torre = c3.text_input("Torre *", autocomplete="new-password")
         
         col_data, col_hora = st.columns([3, 1])
-        data_v = col_data.text_input("Data da Vistoria * (Ex: 02/04/2026)", autocomplete="one-time-code")
-        hora_v = col_hora.text_input("Horário *", placeholder="14:00", autocomplete="one-time-code")
+        data_v = col_data.text_input("Data da Vistoria * (Ex: 02/04/2026)", autocomplete="new-password")
+        hora_v = col_hora.text_input("Horário *", placeholder="14:00", autocomplete="new-password")
         data_final = f"{data_v} às {hora_v}" if (data_v and hora_v) else ""
 
         st.write("**Data de Emissão do Laudo: * **")
         ce1, ce2, ce3 = st.columns(3)
-        dia_laudo = ce1.text_input("Dia", value=datetime.now().day, autocomplete="one-time-code")
+        dia_laudo = ce1.text_input("Dia", value=datetime.now().day, autocomplete="new-password")
         mes_extenso = ce2.selectbox("Mês", ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"], index=datetime.now().month - 1)
-        ano_laudo = ce3.text_input("Ano", value=datetime.now().year, autocomplete="one-time-code")
+        ano_laudo = ce3.text_input("Ano", value=datetime.now().year, autocomplete="new-password")
 
     st.header("📸 Registros")
     foto_capa_raw = st.file_uploader("Foto Fachada (Obrigatório) *", type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
     endereco_f = ""
+    
     foto_capa = processar_imagem(foto_capa_raw)
 
     if foto_capa:
         col_cep, col_num_end = st.columns([3, 1])
-        ce_in = col_cep.text_input("CEP *", autocomplete="one-time-code")
-        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123", autocomplete="one-time-code")
+        ce_in = col_cep.text_input("CEP *", autocomplete="new-password")
+        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123", autocomplete="new-password")
         
         if len(ce_in) >= 8:
             d = buscar_cep(ce_in)
             if d and "erro" not in d:
-                rua, bairro, cep_api = d.get('logradouro'), d.get('bairro'), d.get('cep')
+                rua = d.get('logradouro')
+                bairro = d.get('bairro')
+                cidade = d.get('localidade')
+                cep_api = d.get('cep')
+                # Alteração: Removido o prefixo "Bairro:"
                 endereco_f = f"{rua}, nº {num_endereco} - {bairro} - CEP: {cep_api}" if num_endereco else ""
-                if endereco_f: st.success(f"📍 {endereco_f}")
+                if endereco_f:
+                    st.success(f"📍 {endereco_f}")
+                else:
+                    st.warning("⚠️ Insira o número do endereço para completar.")
 
     vicios_raw = st.file_uploader("Fotos dos Vícios (Mínimo 1) *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
     lista_v = []
     if vicios_raw:
         for i, f in enumerate(vicios_raw):
-            leg = st.text_input(f"Legenda Figura {i+1} *", key=f"v_{i}", autocomplete="one-time-code")
+            leg = st.text_input(f"Legenda Figura {i+1} *", key=f"v_{i}", autocomplete="new-password")
             foto_proc = processar_imagem(f)
             if foto_proc and leg:
+                # ACRESCENTADO O ENTER (\n) AO FINAL DA LEGENDA
                 lista_v.append({"foto": foto_proc, "legenda": leg + "\n"})
 
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
+        # --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
         erros = []
         if not nome: erros.append("Nome do Solicitante")
         if not num_laudo: erros.append("Número do Laudo")
@@ -332,8 +340,11 @@ elif st.session_state.pagina == "gerador":
                 doc.render(ctx)
                 buf = io.BytesIO()
                 doc.save(buf)
+                
+                # NOME DO ARQUIVO ATUALIZADO: LT_{numero}_{nome}.docx
                 nome_arquivo_final = f"LT_{num_laudo}_{nome}.docx"
                 st.download_button("📥 Baixar Laudo", data=buf.getvalue(), file_name=nome_arquivo_final)
+                
             except Exception as e: st.error(f"Erro ao gerar documento: {e}")
 
 elif st.session_state.pagina == "projetos":
