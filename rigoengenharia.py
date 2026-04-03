@@ -324,8 +324,8 @@ elif st.session_state.pagina == "gerador":
                     "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
                     "data_da_Vis": data_final, "Endereco": endereco_f,
                     "dia_laudo": dia_laudo, "mes_laudo_extenso": mes_extenso, "ano": ano_laudo,
-                    "foto_fachada": InlineImage(doc, foto_capa, width=Mm(100)),
-                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(100)), "legenda": x["legenda"]} for x in lista_v]
+                    "foto_fachada": InlineImage(doc, foto_capa, width=Mm(110)),
+                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(120)), "legenda": x["legenda"]} for x in lista_v]
                 }
                 doc.render(ctx)
                 buf = io.BytesIO()
