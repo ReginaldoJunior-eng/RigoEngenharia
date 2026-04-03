@@ -1,6 +1,4 @@
 streamlit
 docxtpl
-requests
-Pillow
-pillow_heif
 python-docx
+requests
