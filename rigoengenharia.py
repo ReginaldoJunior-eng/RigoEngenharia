@@ -299,7 +299,8 @@ elif st.session_state.pagina == "gerador":
             leg = st.text_input(f"Legenda Figura {i+1} *", key=f"v_{i}")
             foto_proc = processar_imagem(f)
             if foto_proc and leg:
-                lista_v.append({"foto": foto_proc, "legenda": leg})
+                # ACRESCENTADO O ENTER (\n) AO FINAL DA LEGENDA
+                lista_v.append({"foto": foto_proc, "legenda": leg + "\n"})
 
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
         # --- VALIDAÇÃO DE CAMPOS OBRIGATÓRIOS ---
@@ -323,8 +324,8 @@ elif st.session_state.pagina == "gerador":
                     "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
                     "data_da_Vis": data_final, "Endereco": endereco_f,
                     "dia_laudo": dia_laudo, "mes_laudo_extenso": mes_extenso, "ano": ano_laudo,
-                    "foto_fachada": InlineImage(doc, foto_capa, width=Mm(120)),
-                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(120)), "legenda": x["legenda"]} for x in lista_v]
+                    "foto_fachada": InlineImage(doc, foto_capa, width=Mm(100)),
+                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(100)), "legenda": x["legenda"]} for x in lista_v]
                 }
                 doc.render(ctx)
                 buf = io.BytesIO()
