@@ -46,12 +46,10 @@ def processar_imagem(arquivo):
     if arquivo is None:
         return None
     
-    # Se já for JPG ou PNG, retorna o original para economizar processamento
     ext = arquivo.name.lower()
     if ext.endswith(('.jpg', '.jpeg', '.png')):
         return arquivo
     
-    # Se for HEIC ou DNG, converte
     try:
         img = Image.open(arquivo)
         if img.mode != 'RGB':
@@ -65,7 +63,7 @@ def processar_imagem(arquivo):
         st.error(f"Erro ao processar imagem {arquivo.name}: {e}")
         return None
 
-# --- 3. ESTILIZAÇÃO CSS E TRAVA ANTI-AUTOCOMPLETE (VIA JAVASCRIPT) ---
+# --- 3. ESTILIZAÇÃO CSS E TRAVA ANTI-AUTOCOMPLETE ---
 st.markdown("""
     <style>
     .main-banner {
@@ -131,7 +129,6 @@ st.markdown("""
 
     <script>
         const disableAutocomplete = () => {
-            // Tenta localizar todos os inputs no DOM renderizado
             const inputs = window.parent.document.querySelectorAll('input');
             inputs.forEach(input => {
                 input.setAttribute('autocomplete', 'one-time-code');
@@ -139,21 +136,22 @@ st.markdown("""
                 input.setAttribute('spellcheck', 'false');
             });
         };
-        // Executa a cada 1 segundo para garantir que campos dinâmicos sejam limpos
         setInterval(disableAutocomplete, 1000);
     </script>
     """, unsafe_allow_html=True)
 
 # --- 4. NAVEGAÇÃO LATERAL (SIDEBAR) ---
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "inicio"
+
 with st.sidebar:
     st.write("") 
     try:
-        st.image("Reng.png", use_container_width=True)
+        st.image("Reng.png", use_column_width=True)
     except:
         st.write("---")
         st.markdown("<h3 style='text-align: center; color: white;'>Rigo Engenharia</h3>", unsafe_allow_html=True)
     
-    st.write("") 
     st.title("🌐 Navegação")
     
     if st.button("🏠 Início"): st.session_state.pagina = "inicio"
@@ -166,15 +164,12 @@ with st.sidebar:
     
     st.title("🔒 Área do Engenheiro")
     with st.expander("Acessar Gerador"):
-        senha = st.text_input("Senha de Acesso", type="password")
+        senha = st.text_input("Senha de Acesso", type="password", key="senha_acesso")
         if senha == "rigo2026":
-            if st.button("🚀 Abrir Gerador", use_container_width=True):
+            if st.button("🚀 Abrir Gerador", use_column_width=True, key="btn_abrir_gerador"):
                 st.session_state.pagina = "gerador"
         elif senha != "":
             st.error("Senha incorreta")
-
-if 'pagina' not in st.session_state:
-    st.session_state.pagina = "inicio"
 
 # --- 5. CONTEÚDO DAS PÁGINAS ---
 
@@ -191,13 +186,10 @@ if st.session_state.pagina == "servicos":
 
     with c1:
         st.markdown(f'<div class="service-card" style="background-image: url(\'{img_pericia}\');"><div class="card-overlay"><h3>Avaliações e Perícias</h3><p>Laudos judiciais, vistorias cautelares de vizinhança e avaliações precisas com rigor técnico.</p></div></div>', unsafe_allow_html=True)
-        
     with c2:
         st.markdown(f'<div class="service-card" style="background-image: url(\'{img_seguranca}\');"><div class="card-overlay"><h3>Segurança do Trabalho</h3><p>Consultoria técnica em NRs, gestão de riscos ocupacionais e segurança ativa em canteiros de obras.</p></div></div>', unsafe_allow_html=True)
-        
     with c3:
         st.markdown(f'<div class="service-card" style="background-image: url(\'{img_incendio}\');"><div class="card-overlay"><h3>Prevenção de Incêndios</h3><p>Projetos técnicos rigorosos para CLCB/AVCB e inspeção técnica detalhada de sistemas de combate.</p></div></div>', unsafe_allow_html=True)
-        
     with c4:
         st.markdown(f'<div class="service-card" style="background-image: url(\'{img_patologia}\');"><div class="card-overlay"><h3>Patologia das Construções</h3><p>Diagnóstico de manifestações patológicas e planos de recuperação para estruturas.</p></div></div>', unsafe_allow_html=True)
 
@@ -242,11 +234,11 @@ elif st.session_state.pagina == "contato":
     with col_form:
         st.subheader("Solicite um Orçamento")
         with st.form("f_contato"):
-            n = st.text_input("Nome Completo")
-            e = st.text_input("E-mail")
-            servico_escolhido = st.selectbox("Qual sua necessidade?", ["Vistoria Cautelar", "Laudo de Recebimento", "Avaliação de Imóvel", "Projeto de Incêndio", "Perícia", "Outros"])
-            msg = st.text_area("Descrição")
-            if st.form_submit_button("Enviar Pedido", use_container_width=True):
+            n = st.text_input("Nome Completo", key="contato_nome")
+            e = st.text_input("E-mail", key="contato_email")
+            servico_escolhido = st.selectbox("Qual sua necessidade?", ["Vistoria Cautelar", "Laudo de Recebimento", "Avaliação de Imóvel", "Projeto de Incêndio", "Perícia", "Outros"], key="contato_servico")
+            msg = st.text_area("Descrição", key="contato_msg")
+            if st.form_submit_button("Enviar Pedido", use_column_width=True):
                 st.success("✅ Recebemos sua solicitação!")
 
 elif st.session_state.pagina == "gerador":
@@ -254,11 +246,11 @@ elif st.session_state.pagina == "gerador":
     
     with st.expander("📋 Dados Base (Obrigatórios)", expanded=True):
         col_n, col_num = st.columns([3, 1])
-        nome = col_n.text_input("Nome do Solicitante *")
-        num_laudo = col_num.text_input("Nº Laudo *", placeholder="001")
+        nome = col_n.text_input("Nome do Solicitante *", key="g_nome")
+        num_laudo = col_num.text_input("Nº Laudo *", placeholder="001", key="g_num_laudo")
         
         c1, c2, c3 = st.columns(3)
-        raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11)
+        raw_cpf = c1.text_input("CPF (apenas números) *", max_chars=11, key="g_cpf")
         cpf_valido = validar_cpf(raw_cpf)
         cpf_final = formatar_cpf(raw_cpf) if cpf_valido else ""
         
@@ -266,29 +258,29 @@ elif st.session_state.pagina == "gerador":
             if cpf_valido: st.success(f"✅ CPF Válido: {cpf_final}")
             else: st.error("❌ CPF Inválido")
 
-        apto = c2.text_input("Apto *")
-        torre = c3.text_input("Torre *")
+        apto = c2.text_input("Apto *", key="g_apto")
+        torre = c3.text_input("Torre *", key="g_torre")
         
         col_data, col_hora = st.columns([3, 1])
-        data_v = col_data.text_input("Data da Vistoria * (Ex: 02/04/2026)")
-        hora_v = col_hora.text_input("Horário *", placeholder="14:00")
+        data_v = col_data.text_input("Data da Vistoria * (Ex: 02/04/2026)", key="g_data_v")
+        hora_v = col_hora.text_input("Horário *", placeholder="14:00", key="g_hora_v")
         data_final = f"{data_v} às {hora_v}" if (data_v and hora_v) else ""
 
         st.write("**Data de Emissão do Laudo: * **")
         ce1, ce2, ce3 = st.columns(3)
-        dia_laudo = ce1.text_input("Dia", value=datetime.now().day)
-        mes_extenso = ce2.selectbox("Mês", ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"], index=datetime.now().month - 1)
-        ano_laudo = ce3.text_input("Ano", value=datetime.now().year)
+        dia_laudo = ce1.text_input("Dia", value=datetime.now().day, key="g_dia")
+        mes_extenso = ce2.selectbox("Mês", ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"], index=datetime.now().month - 1, key="g_mes")
+        ano_laudo = ce3.text_input("Ano", value=datetime.now().year, key="g_ano")
 
     st.header("📸 Registros")
-    foto_capa_raw = st.file_uploader("Foto Fachada (Obrigatório) *", type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
+    foto_capa_raw = st.file_uploader("Foto Fachada (Obrigatório) *", type=['jpg', 'jpeg', 'png', 'heic', 'dng'], key="g_foto_capa")
     endereco_f = ""
     foto_capa = processar_imagem(foto_capa_raw)
 
     if foto_capa:
         col_cep, col_num_end = st.columns([3, 1])
-        ce_in = col_cep.text_input("CEP *")
-        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123")
+        ce_in = col_cep.text_input("CEP *", key="g_cep")
+        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123", key="g_num_end")
         
         if len(ce_in) >= 8:
             d = buscar_cep(ce_in)
@@ -300,7 +292,7 @@ elif st.session_state.pagina == "gerador":
                 if endereco_f:
                     st.success(f"📍 {endereco_f}")
 
-    vicios_raw = st.file_uploader("Fotos dos Vícios (Mínimo 1) *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
+    vicios_raw = st.file_uploader("Fotos dos Vícios (Mínimo 1) *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic', 'dng'], key="g_vicios")
     lista_v = []
     if vicios_raw:
         for i, f in enumerate(vicios_raw):
@@ -309,7 +301,7 @@ elif st.session_state.pagina == "gerador":
             if foto_proc and leg:
                 lista_v.append({"foto": foto_proc, "legenda": leg + "\n"})
 
-    if st.button("🚀 GERAR LAUDO", use_container_width=True):
+    if st.button("🚀 GERAR LAUDO", use_column_width=True, key="btn_gerar_laudo"):
         erros = []
         if not nome: erros.append("Nome do Solicitante")
         if not num_laudo: erros.append("Número do Laudo")
@@ -337,7 +329,7 @@ elif st.session_state.pagina == "gerador":
                 buf = io.BytesIO()
                 doc.save(buf)
                 nome_arquivo_final = f"LT_{num_laudo}_{nome}.docx"
-                st.download_button("📥 Baixar Laudo", data=buf.getvalue(), file_name=nome_arquivo_final)
+                st.download_button("📥 Baixar Laudo", data=buf.getvalue(), file_name=nome_arquivo_final, key="btn_download")
             except Exception as e: st.error(f"Erro ao gerar documento: {e}")
 
 elif st.session_state.pagina == "projetos":
