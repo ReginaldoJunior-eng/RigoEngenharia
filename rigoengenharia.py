@@ -56,12 +56,14 @@ def processar_imagem(arquivo):
         return None
 
 def remover_paginas_em_branco_fim(doc):
-    """Remove parágrafos vazios e quebras residuais ao final do documento."""
+    """Remove parágrafos vazios e quebras residuais ao final do documento de forma recursiva."""
     for paragraph in reversed(doc.paragraphs):
+        # Remove se o parágrafo estiver vazio ou apenas com espaços
         if not paragraph.text.strip():
             p = paragraph._element
             p.getparent().remove(p)
         else:
+            # Para assim que encontrar um parágrafo com texto ou imagem
             break
     return doc
 
@@ -268,6 +270,7 @@ elif st.session_state.pagina == "gerador":
                 doc_tpl.save(buffer_temp)
                 buffer_temp.seek(0)
                 
+                # CARREGA O DOCUMENTO PARA LIMPEZA DE PÁGINAS EM BRANCO
                 doc_final_obj = Document(buffer_temp)
                 doc_final_obj = remover_paginas_em_branco_fim(doc_final_obj)
                 
@@ -276,7 +279,6 @@ elif st.session_state.pagina == "gerador":
                 
                 st.success("✅ Laudo gerado com sucesso!")
                 
-                # NOME DO ARQUIVO ATUALIZADO COM O ANO 2026
                 st.download_button(
                     label="📥 Baixar Laudo Word",
                     data=buffer_saida.getvalue(),
