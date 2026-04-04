@@ -219,20 +219,17 @@ elif st.session_state.pagina == "gerador":
     if vicios_raw:
         seen_filenames = set()
         for idx, f in enumerate(vicios_raw):
-            # Bloqueio de duplicados pelo nome do arquivo
             if f.name in seen_filenames:
                 st.warning(f"⚠️ A imagem '{f.name}' já foi adicionada e será ignorada.")
                 continue
             seen_filenames.add(f.name)
 
-            # Ajuste de largura: 0.8 para imagem, 1.5 para ambiente (mais largo), 2 para legenda
             col_img, col_amb, col_txt = st.columns([0.8, 1.5, 2])
             foto_proc = processar_imagem(f)
             if foto_proc:
                 with col_img:
                     st.image(foto_proc, use_container_width=True)
                 with col_amb:
-                    # Chave única com index para evitar erro de duplicidade do Streamlit
                     amb_sel = st.selectbox(f"Ambiente ({f.name})", ambientes_opcoes, key=f"amb_{idx}_{f.name}")
                 with col_txt:
                     desc_v = st.text_input(f"Descrição do Vício *", key=f"leg_{idx}_{f.name}", placeholder="Ex: Trinca no revestimento")
@@ -249,10 +246,8 @@ elif st.session_state.pagina == "gerador":
             st.error("🚨 Preencha todos os campos obrigatórios e coloque descrições nas fotos.")
         else:
             try:
-                # 1. Carrega o Template
                 doc_tpl = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
                 
-                # 2. Monta o contexto para o docxtpl
                 ctx = {
                     "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
                     "data_da_Vis": data_final, "Endereco": endereco_f,
@@ -267,10 +262,8 @@ elif st.session_state.pagina == "gerador":
                     ]
                 }
                 
-                # 3. Renderiza
                 doc_tpl.render(ctx)
                 
-                # 4. Limpeza de páginas em branco
                 buffer_temp = io.BytesIO()
                 doc_tpl.save(buffer_temp)
                 buffer_temp.seek(0)
@@ -282,12 +275,12 @@ elif st.session_state.pagina == "gerador":
                 doc_final_obj.save(buffer_saida)
                 
                 st.success("✅ Laudo gerado com sucesso!")
-                st.info("💡 Dica: Ao abrir o arquivo, se o Word perguntar sobre 'atualizar campos', clique em SIM para atualizar o sumário automaticamente.")
                 
+                # NOME DO ARQUIVO ATUALIZADO COM O ANO 2026
                 st.download_button(
                     label="📥 Baixar Laudo Word",
                     data=buffer_saida.getvalue(),
-                    file_name=f"LT_RIGO_{num_laudo} - {nome}.docx",
+                    file_name=f"LT_RIGO_{num_laudo}_2026 - {nome}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
                 
