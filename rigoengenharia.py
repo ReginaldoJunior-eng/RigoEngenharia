@@ -1,6 +1,7 @@
 import streamlit as st
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
+from docx import Document # Adicionado para manipulação de estrutura
 import io
 import re
 import requests
@@ -56,6 +57,16 @@ def processar_imagem(arquivo):
     except Exception as e:
         st.error(f"Erro ao processar imagem {arquivo.name}: {e}")
         return None
+
+# Função para remover parágrafos vazios no final (evita página em branco)
+def remover_paginas_em_branco_fim(doc):
+    for paragraph in reversed(doc.paragraphs):
+        if not paragraph.text.strip():
+            p = paragraph._element
+            p.getparent().remove(p)
+        else:
+            break
+    return doc
 
 # --- 3. ESTILIZAÇÃO CSS ---
 st.markdown("""
@@ -197,7 +208,6 @@ elif st.session_state.pagina == "gerador":
                 endereco_f = f"{d.get('logradouro')}, nº {num_endereco} - {d.get('bairro')} - CEP: {d.get('cep')}"
                 if endereco_f: st.success(f"📍 {endereco_f}")
 
-    # --- NOVA LOGICA DE FOTOS E REORDENAÇÃO ---
     st.subheader("Fotos dos Vícios")
     st.info("Ajuste a 'Ordem' para mudar a posição da foto no laudo. A legenda acompanhará a foto.")
     vicios_raw = st.file_uploader("Selecione as fotos *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic', 'dng'])
@@ -211,16 +221,13 @@ elif st.session_state.pagina == "gerador":
                 with col_img:
                     st.image(foto_proc, use_container_width=True)
                 with col_ord:
-                    # Campo de ordem. O 'key' único garante que o Streamlit não confunda os inputs
                     ordem_sel = st.number_input("Ordem", min_value=1, max_value=len(vicios_raw), value=i+1, key=f"ord_{f.name}")
                 with col_txt:
-                    # 'key' baseada no NOME do arquivo: a legenda não some se a ordem mudar
                     leg = st.text_input(f"Legenda ({f.name}) *", key=f"leg_{f.name}", placeholder="Descreva o vício...")
                     if leg:
                         lista_desordenada.append({"foto": foto_proc, "legenda": leg, "ordem": ordem_sel})
             st.write("---")
 
-    # Ordenamos a lista com base na escolha do usuário antes de enviar para o Word
     lista_v_final = sorted(lista_desordenada, key=lambda x: x['ordem'])
 
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
@@ -228,20 +235,34 @@ elif st.session_state.pagina == "gerador":
             st.error("🚨 Preencha todos os campos obrigatórios e coloque legendas nas fotos.")
         else:
             try:
-                doc = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
+                # 1. Carrega e Renderiza o Template
+                doc_tpl = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
                 ctx = {
                     "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
                     "data_da_Vis": data_final, "Endereco": endereco_f,
                     "dia_laudo": dia_laudo, "mes_laudo_extenso": mes_extenso, "ano": ano_laudo,
-                    "foto_fachada": InlineImage(doc, foto_capa, width=Mm(110)),
-                    "registros": [{"foto": InlineImage(doc, x["foto"], width=Mm(140)), "legenda": x["legenda"]} for x in lista_v_final]
+                    "foto_fachada": InlineImage(doc_tpl, foto_capa, width=Mm(110)),
+                    "registros": [{"foto": InlineImage(doc_tpl, x["foto"], width=Mm(140)), "legenda": x["legenda"]} for x in lista_v_final]
                 }
-                doc.render(ctx)
-                buf = io.BytesIO()
-                doc.save(buf)
-                st.download_button("📥 Baixar Laudo", data=buf.getvalue(), file_name=f"LT_{num_laudo}_{nome}.docx")
+                doc_tpl.render(ctx)
+                
+                # 2. Salva temporariamente em buffer para converter para objeto Document (python-docx)
+                temp_buf = io.BytesIO()
+                doc_tpl.save(temp_buf)
+                temp_buf.seek(0)
+                
+                # 3. Abre com python-docx para limpar o final do documento
+                doc_clean = Document(temp_buf)
+                doc_clean = remover_paginas_em_branco_fim(doc_clean)
+                
+                # 4. Salva o resultado final para download
+                final_buf = io.BytesIO()
+                doc_clean.save(final_buf)
+                
+                nome_arquivo_saida = f"LT_RIGO_{num_laudo} - {nome}.docx"
+                st.download_button("📥 Baixar Laudo", data=final_buf.getvalue(), file_name=nome_arquivo_saida)
+                
             except Exception as e: st.error(f"Erro ao gerar: {e}")
 
 elif st.session_state.pagina == "projetos":
     st.header("Projetos Entregues"); st.info("Seção em desenvolvimento.")
-    
