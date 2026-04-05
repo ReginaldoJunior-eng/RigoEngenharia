@@ -40,6 +40,7 @@ def formatar_cpf(cpf: str) -> str:
         return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
     return cpf
 
+@st.cache_data(show_spinner=False)
 def processar_imagem(arquivo):
     if arquivo is None:
         return None
@@ -52,18 +53,14 @@ def processar_imagem(arquivo):
         buffer.seek(0)
         return buffer
     except Exception as e:
-        st.error(f"Erro ao processar imagem {arquivo.name}: {e}")
         return None
 
 def remover_paginas_em_branco_fim(doc):
-    """Remove parágrafos vazios e quebras residuais ao final do documento de forma recursiva."""
     for paragraph in reversed(doc.paragraphs):
-        # Remove se o parágrafo estiver vazio ou apenas com espaços
         if not paragraph.text.strip():
             p = paragraph._element
             p.getparent().remove(p)
         else:
-            # Para assim que encontrar um parágrafo com texto ou imagem
             break
     return doc
 
@@ -88,7 +85,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. NAVEGAÇÃO LATERAL (SIDEBAR) ---
+# --- 4. NAVEGAÇÃO LATERAL ---
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "inicio"
 
@@ -115,8 +112,7 @@ with st.sidebar:
             if st.button("🚀 Abrir Gerador", use_container_width=True): st.session_state.pagina = "gerador"
         elif senha != "": st.error("Senha incorreta")
 
-# --- 5. CONTEÚDO DAS PÁGINAS ---
-
+# --- 5. CONTEÚDO ---
 if st.session_state.pagina == "inicio":
     st.markdown('<div class="main-banner"><h1>Rigo Engenharia</h1><p>Excelência técnica em diagnósticos e vistorias</p></div>', unsafe_allow_html=True)
     st.subheader("Bem-vindo ao nosso portal")
@@ -164,6 +160,7 @@ elif st.session_state.pagina == "contato":
 elif st.session_state.pagina == "gerador":
     st.markdown('<div class="main-banner"><h1>🏗️ Painel do Engenheiro</h1><p>Gerador de Laudo Técnico</p></div>', unsafe_allow_html=True)
     
+    # --- DADOS DO FORMULÁRIO ---
     with st.expander("📋 Dados Base (Obrigatórios)", expanded=True):
         col_n, col_num = st.columns([3, 1])
         nome = col_n.text_input("Nome do Solicitante *")
@@ -173,7 +170,6 @@ elif st.session_state.pagina == "gerador":
         raw_cpf = c1.text_input("CPF *")
         cpf_valido = validar_cpf(raw_cpf)
         cpf_final = formatar_cpf(raw_cpf) if cpf_valido else ""
-        
         if raw_cpf and not cpf_valido: st.error("❌ CPF Inválido")
 
         apto = c2.text_input("Apto *")
@@ -192,85 +188,82 @@ elif st.session_state.pagina == "gerador":
         mes_extenso = ce2.selectbox("Mês", meses, index=hoje.month - 1)
         ano_laudo = ce3.text_input("Ano", value=hoje.year)
 
-    st.header("📸 Registros")
-    foto_capa_raw = st.file_uploader("Foto Fachada (Obrigatório) *", type=['jpg', 'jpeg', 'png', 'heic'])
-    endereco_f = ""
-    foto_capa = processar_imagem(foto_capa_raw)
-    
-    if foto_capa:
-        st.image(foto_capa, caption="Prévia da Fachada", width=400)
-        col_cep, col_num_end = st.columns([3, 1])
-        ce_in = col_cep.text_input("CEP *")
-        num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123")
-        if len(ce_in) >= 8:
-            d = buscar_cep(ce_in)
-            if d and "erro" not in d:
-                endereco_f = f"{d.get('logradouro')}, nº {num_endereco} - {d.get('bairro')} - CEP: {d.get('cep')}"
-                st.success(f"📍 {endereco_f}")
+    # --- SESSÃO DE FOTOS (OTIMIZADA PARA NÃO TRAVAR) ---
+    @st.fragment
+    def sessao_fotos():
+        st.header("📸 Registros")
+        foto_capa_raw = st.file_uploader("Foto Fachada (Obrigatório) *", type=['jpg', 'jpeg', 'png', 'heic'], key="capa")
+        endereco_f = ""
+        foto_capa = processar_imagem(foto_capa_raw)
+        
+        if foto_capa:
+            st.image(foto_capa, caption="Prévia da Fachada", width=400)
+            col_cep, col_num_end = st.columns([3, 1])
+            ce_in = col_cep.text_input("CEP *")
+            num_endereco = col_num_end.text_input("Nº do Endereço *", placeholder="123")
+            if len(ce_in) >= 8:
+                d = buscar_cep(ce_in)
+                if d and "erro" not in d:
+                    endereco_f = f"{d.get('logradouro')}, nº {num_endereco} - {d.get('bairro')} - CEP: {d.get('cep')}"
+                    st.success(f"📍 {endereco_f}")
 
-    st.subheader("Fotos dos Vícios")
-    vicios_raw = st.file_uploader("Selecione as fotos *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic'])
-    
-    ambientes_opcoes = [
-        "Entrada", "Cozinha", "Área de serviço", "Varanda", "Sala de estar", 
-        "Dormitório 1", "Dormitório 2", "Dormitório 3", 
-        "Banheiro Social", "Banheiro Suíte", "Depósito"
-    ]
+        st.subheader("Fotos dos Vícios")
+        vicios_raw = st.file_uploader("Selecione as fotos *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic'], key="vicios")
+        
+        ambientes_opcoes = ["Entrada", "Cozinha", "Área de serviço", "Varanda", "Sala de estar", "Dormitório 1", "Dormitório 2", "Dormitório 3", "Banheiro Social", "Banheiro Suíte", "Depósito"]
 
-    lista_v_final = []
-    if vicios_raw:
-        seen_filenames = set()
-        for idx, f in enumerate(vicios_raw):
-            if f.name in seen_filenames:
-                st.warning(f"⚠️ A imagem '{f.name}' já foi adicionada e será ignorada.")
-                continue
-            seen_filenames.add(f.name)
+        lista_v_final = []
+        if vicios_raw:
+            seen_filenames = set()
+            for idx, f in enumerate(vicios_raw):
+                if f.name in seen_filenames: continue
+                seen_filenames.add(f.name)
 
-            col_img, col_amb, col_txt = st.columns([0.8, 1.5, 2])
-            foto_proc = processar_imagem(f)
-            if foto_proc:
-                with col_img:
-                    st.image(foto_proc, use_container_width=True)
-                with col_amb:
-                    amb_sel = st.selectbox(f"Ambiente ({f.name})", ambientes_opcoes, key=f"amb_{idx}_{f.name}")
-                with col_txt:
-                    desc_v = st.text_input(f"Descrição do Vício *", key=f"leg_{idx}_{f.name}", placeholder="Ex: Trinca no revestimento")
-                    if desc_v:
-                        lista_v_final.append({
-                            "foto": foto_proc, 
-                            "ambiente": amb_sel, 
-                            "legenda": desc_v
-                        })
-            st.write("---")
+                col_img, col_amb, col_txt = st.columns([0.8, 1.5, 2])
+                foto_proc = processar_imagem(f)
+                if foto_proc:
+                    with col_img: st.image(foto_proc, use_container_width=True)
+                    with col_amb: amb_sel = st.selectbox(f"Ambiente ({f.name})", ambientes_opcoes, key=f"amb_{idx}")
+                    with col_txt: 
+                        desc_v = st.text_input(f"Descrição do Vício *", key=f"leg_{idx}", placeholder="Ex: Trinca no revestimento")
+                        if desc_v:
+                            lista_v_final.append({"foto": foto_proc, "ambiente": amb_sel, "legenda": desc_v})
+                st.write("---")
+        
+        # Guardamos os dados no session_state para o botão de gerar laudo acessar
+        st.session_state.dados_fotos = {"capa": foto_capa, "lista": lista_v_final, "endereco": endereco_f}
 
+    # Chama a função fragmentada (isso impede a tela preta ao digitar)
+    sessao_fotos()
+
+    # --- BOTÃO FINAL ---
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
+        f_dados = st.session_state.get("dados_fotos", {})
+        foto_capa = f_dados.get("capa")
+        lista_v_final = f_dados.get("lista", [])
+        endereco_f = f_dados.get("endereco", "")
+
         if not (nome and num_laudo and cpf_final and foto_capa and lista_v_final):
             st.error("🚨 Preencha todos os campos obrigatórios e coloque descrições nas fotos.")
         else:
             try:
                 doc_tpl = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
-                
                 ctx = {
                     "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
                     "data_da_Vis": data_final, "Endereco": endereco_f,
                     "dia_laudo": dia_laudo, "mes_laudo_extenso": mes_extenso, "ano": ano_laudo,
                     "foto_fachada": InlineImage(doc_tpl, foto_capa, width=Mm(110)),
                     "registros": [
-                        {
-                            "foto": InlineImage(doc_tpl, x["foto"], width=Mm(140)), 
-                            "ambiente": x["ambiente"], 
-                            "legenda": x["legenda"]
-                        } for x in lista_v_final
+                        {"foto": InlineImage(doc_tpl, x["foto"], width=Mm(140)), "ambiente": x["ambiente"], "legenda": x["legenda"]} 
+                        for x in lista_v_final
                     ]
                 }
-                
                 doc_tpl.render(ctx)
                 
                 buffer_temp = io.BytesIO()
                 doc_tpl.save(buffer_temp)
                 buffer_temp.seek(0)
                 
-                # CARREGA O DOCUMENTO PARA LIMPEZA DE PÁGINAS EM BRANCO
                 doc_final_obj = Document(buffer_temp)
                 doc_final_obj = remover_paginas_em_branco_fim(doc_final_obj)
                 
@@ -278,17 +271,15 @@ elif st.session_state.pagina == "gerador":
                 doc_final_obj.save(buffer_saida)
                 
                 st.success("✅ Laudo gerado com sucesso!")
-                
                 st.download_button(
                     label="📥 Baixar Laudo Word",
                     data=buffer_saida.getvalue(),
                     file_name=f"LT_RIGO_{num_laudo}_2026 - {nome}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
-                
-            except Exception as e: 
+            except Exception as e:
                 st.error(f"Erro ao gerar: {e}")
 
 elif st.session_state.pagina == "projetos":
     st.header("🏗️ Projetos Entregues")
-    st.info("Seção em desenvolvimento. Em breve, fotos das vistorias e laudos concluídos.")
+    st.info("Seção em desenvolvimento.")
