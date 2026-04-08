@@ -89,6 +89,10 @@ st.markdown("""
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "inicio"
 
+# Inicialização do cache de fotos para fluidez
+if 'lista_fotos_cache' not in st.session_state:
+    st.session_state.lista_fotos_cache = []
+
 with st.sidebar:
     st.write("") 
     try: 
@@ -188,7 +192,7 @@ elif st.session_state.pagina == "gerador":
         mes_extenso = ce2.selectbox("Mês", meses, index=hoje.month - 1)
         ano_laudo = ce3.text_input("Ano", value=hoje.year)
 
-    # --- SESSÃO DE FOTOS (OTIMIZADA PARA NÃO TRAVAR) ---
+    # --- SESSÃO DE FOTOS (REFORMULADA PARA FLUÍDEZ) ---
     @st.fragment
     def sessao_fotos():
         st.header("📸 Registros")
@@ -207,33 +211,52 @@ elif st.session_state.pagina == "gerador":
                     endereco_f = f"{d.get('logradouro')}, nº {num_endereco} - {d.get('bairro')} - CEP: {d.get('cep')}"
                     st.success(f"📍 {endereco_f}")
 
+        st.divider()
         st.subheader("Fotos dos Vícios")
+        
+        # Upload em lote
         vicios_raw = st.file_uploader("Selecione as fotos *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic'], key="vicios")
         
+        # Botão para processar lote e evitar repetições
+        if vicios_raw:
+            if st.button("🔄 Adicionar Fotos ao Lote"):
+                for f in vicios_raw:
+                    if not any(x['nome'] == f.name for x in st.session_state.lista_fotos_cache):
+                        foto_p = processar_imagem(f)
+                        if foto_p:
+                            st.session_state.lista_fotos_cache.append({"nome": f.name, "foto": foto_p, "ambiente": "Entrada", "legenda": ""})
+                st.rerun()
+
         ambientes_opcoes = ["Entrada", "Cozinha", "Área de serviço", "Varanda", "Sala de estar", "Dormitório 1", "Dormitório 2", "Dormitório 3", "Banheiro Social", "Banheiro Suíte", "Depósito"]
 
-        lista_v_final = []
-        if vicios_raw:
-            seen_filenames = set()
-            for idx, f in enumerate(vicios_raw):
-                if f.name in seen_filenames: continue
-                seen_filenames.add(f.name)
-
-                col_img, col_amb, col_txt = st.columns([0.8, 1.5, 2])
-                foto_proc = processar_imagem(f)
-                if foto_proc:
-                    with col_img: st.image(foto_proc, use_container_width=True)
-                    with col_amb: amb_sel = st.selectbox(f"Ambiente ({f.name})", ambientes_opcoes, key=f"amb_{idx}")
+        # Formulário para edição de legendas sem travar
+        if st.session_state.lista_fotos_cache:
+            with st.form("form_fotos"):
+                for idx, item in enumerate(st.session_state.lista_fotos_cache):
+                    col_img, col_amb, col_txt = st.columns([0.8, 1.5, 2])
+                    with col_img: st.image(item["foto"], use_container_width=True)
+                    with col_amb: 
+                        st.session_state.lista_fotos_cache[idx]["ambiente"] = st.selectbox(
+                            f"Ambiente ({item['nome']})", ambientes_opcoes, 
+                            index=ambientes_opcoes.index(item["ambiente"]), key=f"amb_{idx}"
+                        )
                     with col_txt: 
-                        desc_v = st.text_input(f"Descrição do Vício *", key=f"leg_{idx}", placeholder="Ex: Trinca no revestimento")
-                        if desc_v:
-                            lista_v_final.append({"foto": foto_proc, "ambiente": amb_sel, "legenda": desc_v})
-                st.write("---")
+                        st.session_state.lista_fotos_cache[idx]["legenda"] = st.text_input(
+                            f"Descrição do Vício *", value=item["legenda"], key=f"leg_{idx}"
+                        )
+                    st.write("---")
+                
+                c_save, c_del = st.columns(2)
+                if c_save.form_submit_button("💾 SALVAR LEGENDAS", use_container_width=True):
+                    st.toast("Dados salvos no cache!", icon="✅")
+                if c_del.form_submit_button("🗑️ LIMPAR TODAS AS FOTOS", use_container_width=True):
+                    st.session_state.lista_fotos_cache = []
+                    st.rerun()
         
-        # Guardamos os dados no session_state para o botão de gerar laudo acessar
+        # Exporta dados finais para o gerador
+        lista_v_final = [x for x in st.session_state.lista_fotos_cache if x["legenda"] != ""]
         st.session_state.dados_fotos = {"capa": foto_capa, "lista": lista_v_final, "endereco": endereco_f}
 
-    # Chama a função fragmentada (isso impede a tela preta ao digitar)
     sessao_fotos()
 
     # --- BOTÃO FINAL ---
@@ -244,7 +267,7 @@ elif st.session_state.pagina == "gerador":
         endereco_f = f_dados.get("endereco", "")
 
         if not (nome and num_laudo and cpf_final and foto_capa and lista_v_final):
-            st.error("🚨 Preencha todos os campos obrigatórios e coloque descrições nas fotos.")
+            st.error("🚨 Preencha todos os campos obrigatórios e coloque descrições nas fotos (clique em Salvar).")
         else:
             try:
                 doc_tpl = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
