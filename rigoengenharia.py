@@ -40,27 +40,28 @@ def formatar_cpf(cpf: str) -> str:
         return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
     return cpf
 
-@st.cache_data(show_spinner=False)
+# --- OTIMIZAÇÃO DE MEMÓRIA E SUPORTE IPHONE (HEIF) ---
+@st.cache_data(show_spinner="Otimizando imagem...", max_entries=10)
 def processar_imagem(arquivo):
     if arquivo is None:
         return None
     try:
-        img = Image.open(arquivo)
-        
-        # --- OTIMIZAÇÃO DE MEMÓRIA (REDIMENSIONAMENTO) ---
-        # Limita a largura/altura para no máximo 1200px (ideal para Word)
-        max_size = 1200
-        if img.width > max_size or img.height > max_size:
-            img.thumbnail((max_size, max_size), Image.LANCZOS)
-        
-        if img.mode != 'RGB':
-            img = img.convert('RGB')
+        # Abre a imagem (HEIC, JPEG ou PNG)
+        with Image.open(arquivo) as img:
+            # Converte para RGB (necessário para JPEG e Word)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
             
-        buffer = io.BytesIO()
-        # Qualidade 75% e optimize=True para reduzir o peso do arquivo final
-        img.save(buffer, format="JPEG", quality=75, optimize=True)
-        buffer.seek(0)
-        return buffer
+            # Redimensionamento agressivo para economizar RAM no mobile
+            max_size = 1000 
+            if img.width > max_size or img.height > max_size:
+                img.thumbnail((max_size, max_size), Image.LANCZOS)
+            
+            buffer = io.BytesIO()
+            # Salva como JPEG 70% (Equilíbrio perfeito entre peso e nitidez no laudo)
+            img.save(buffer, format="JPEG", quality=70, optimize=True)
+            buffer.seek(0)
+            return buffer
     except Exception as e:
         return None
 
@@ -73,7 +74,7 @@ def remover_paginas_em_branco_fim(doc):
             break
     return doc
 
-# --- 3. ESTILIZAÇÃO CSS ---
+# --- 3. ESTILIZAÇÃO CSS (INCLUINDO AJUSTE MOBILE) ---
 st.markdown("""
     <style>
     .main-banner {
@@ -94,18 +95,16 @@ st.markdown("""
     
     div.stButton > button[kind="secondaryFormSubmit"] {
         background-color: transparent !important;
-        color: rgba(0,0,0,0.2) !important;
+        color: rgba(0,0,0,0.4) !important;
         border: none !important;
-        font-size: 18px !important;
-        padding: 0px !important;
-        margin-top: 25px !important;
-        transition: all 0.3s ease !important;
-        width: 30px !important;
+        font-size: 22px !important;
+        padding: 5px !important;
     }
-    div.stButton > button[kind="secondaryFormSubmit"]:hover {
-        color: red !important;
-        background-color: rgba(255,0,0,0.05) !important;
-        transform: scale(1.2);
+    
+    /* Melhoria visual para mobile */
+    @media (max-width: 768px) {
+        .main-banner { padding: 40px 20px; }
+        .stButton button { height: 45px; }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -140,7 +139,6 @@ with st.sidebar:
             if st.button("🚀 Abrir Gerador", use_container_width=True): st.session_state.pagina = "gerador"
         elif senha != "": st.error("Senha incorreta")
 
-    # Botão de emergência para limpar RAM
     if st.session_state.pagina == "gerador":
         st.divider()
         if st.button("🧹 Limpar Memória (Crash)"):
@@ -220,7 +218,6 @@ elif st.session_state.pagina == "gerador":
         hoje = datetime.now()
         meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
         dia_laudo = ce1.text_input("Dia", value=str(hoje.day).zfill(2))
-        dia_laudo = dia_laudo.zfill(2) if dia_laudo.isdigit() else dia_laudo
         mes_extenso = ce2.selectbox("Mês", meses, index=hoje.month - 1)
         ano_laudo = ce3.text_input("Ano", value=hoje.year)
 
@@ -244,7 +241,6 @@ elif st.session_state.pagina == "gerador":
 
         st.divider()
         st.subheader("Fotos dos Vícios")
-        
         vicios_raw = st.file_uploader("Selecione as fotos *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic'], key="vicios")
         
         if vicios_raw:
@@ -261,22 +257,21 @@ elif st.session_state.pagina == "gerador":
         if st.session_state.lista_fotos_cache:
             with st.form("form_fotos"):
                 for idx, item in enumerate(st.session_state.lista_fotos_cache):
-                    col_img, col_amb, col_txt, col_btn = st.columns([1.0, 1.5, 2.0, 0.3])
+                    # Ajuste de colunas para caber legenda no celular
+                    col_img, col_info = st.columns([1, 2.5])
                     
                     with col_img: 
                         st.image(item["foto"], use_container_width=True)
 
-                    with col_amb: 
+                    with col_info: 
                         st.session_state.lista_fotos_cache[idx]["ambiente"] = st.selectbox(
-                            f"Ambiente ({item['nome']})", ambientes_opcoes, 
+                            f"Ambiente", ambientes_opcoes, 
                             index=ambientes_opcoes.index(item["ambiente"]), key=f"amb_{idx}"
                         )
-                    with col_txt: 
                         st.session_state.lista_fotos_cache[idx]["legenda"] = st.text_input(
                             f"Descrição do Vício *", value=item["legenda"], key=f"leg_{idx}"
                         )
-                    with col_btn:
-                        if st.form_submit_button("✕", help="Excluir Foto", key=f"del_{idx}"):
+                        if st.form_submit_button("✕ Remover Foto", key=f"del_{idx}"):
                             st.session_state.lista_fotos_cache.pop(idx)
                             st.rerun()
                     st.write("---")
