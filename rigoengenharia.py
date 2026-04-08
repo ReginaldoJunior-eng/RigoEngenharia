@@ -46,10 +46,19 @@ def processar_imagem(arquivo):
         return None
     try:
         img = Image.open(arquivo)
+        
+        # --- OTIMIZAÇÃO DE MEMÓRIA (REDIMENSIONAMENTO) ---
+        # Limita a largura/altura para no máximo 1200px (ideal para Word)
+        max_size = 1200
+        if img.width > max_size or img.height > max_size:
+            img.thumbnail((max_size, max_size), Image.LANCZOS)
+        
         if img.mode != 'RGB':
             img = img.convert('RGB')
+            
         buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=90)
+        # Qualidade 75% e optimize=True para reduzir o peso do arquivo final
+        img.save(buffer, format="JPEG", quality=75, optimize=True)
         buffer.seek(0)
         return buffer
     except Exception as e:
@@ -82,6 +91,22 @@ st.markdown("""
     .service-card h3 { color: #ffffff !important; margin-bottom: 8px; font-size: 22px; font-weight: bold; }
     .service-card p { color: #f0f0f0 !important; font-size: 14px; line-height: 1.5; }
     section[data-testid="stSidebar"] .stButton button { width: 100%; text-align: left; border: none; background-color: transparent; padding: 10px 0px; }
+    
+    div.stButton > button[kind="secondaryFormSubmit"] {
+        background-color: transparent !important;
+        color: rgba(0,0,0,0.2) !important;
+        border: none !important;
+        font-size: 18px !important;
+        padding: 0px !important;
+        margin-top: 25px !important;
+        transition: all 0.3s ease !important;
+        width: 30px !important;
+    }
+    div.stButton > button[kind="secondaryFormSubmit"]:hover {
+        color: red !important;
+        background-color: rgba(255,0,0,0.05) !important;
+        transform: scale(1.2);
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -89,7 +114,6 @@ st.markdown("""
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "inicio"
 
-# Inicialização do cache de fotos para fluidez
 if 'lista_fotos_cache' not in st.session_state:
     st.session_state.lista_fotos_cache = []
 
@@ -116,6 +140,14 @@ with st.sidebar:
             if st.button("🚀 Abrir Gerador", use_container_width=True): st.session_state.pagina = "gerador"
         elif senha != "": st.error("Senha incorreta")
 
+    # Botão de emergência para limpar RAM
+    if st.session_state.pagina == "gerador":
+        st.divider()
+        if st.button("🧹 Limpar Memória (Crash)"):
+            st.cache_data.clear()
+            st.session_state.lista_fotos_cache = []
+            st.rerun()
+
 # --- 5. CONTEÚDO ---
 if st.session_state.pagina == "inicio":
     st.markdown('<div class="main-banner"><h1>Rigo Engenharia</h1><p>Excelência técnica em diagnósticos e vistorias</p></div>', unsafe_allow_html=True)
@@ -131,7 +163,7 @@ elif st.session_state.pagina == "quem_somos":
     with col2:
         st.subheader("Diretoria Técnica")
         st.markdown("### **Eng. Rodrigo Rigo**")
-        st.markdown("* **Engenheiro Civil** – CREA/SP 5070787860\n* Pós-Graduado em Eng. de Avaliações e Perícias\n* Pós-Graduado em Eng. de Segurança do Trabalho\n* Pós-Graduado em Eng. de Prevenção de Incêndios\n* Pós-Graduando em Patologia das Construções\n* **Membro Adpat Brasil nº 813**")
+        st.markdown("* **Engenheiro Civil** – CREA/SP 5070787860\n* Pós-Graduado em Eng. de Avaliações e Perícias\n* Pós-Graduado em Eng. de Segurança do Trabalho\n* Pós-Graduado em Eng. de Prevenção de Incendio\n* Pós-Graduando em Patologia das Construções\n* **Membro Adpat Brasil nº 813**")
 
 elif st.session_state.pagina == "servicos":
     st.markdown('<div class="main-banner"><h1>Nossos Serviços</h1><p>Soluções Técnicas Especializadas</p></div>', unsafe_allow_html=True)
@@ -164,7 +196,6 @@ elif st.session_state.pagina == "contato":
 elif st.session_state.pagina == "gerador":
     st.markdown('<div class="main-banner"><h1>🏗️ Painel do Engenheiro</h1><p>Gerador de Laudo Técnico</p></div>', unsafe_allow_html=True)
     
-    # --- DADOS DO FORMULÁRIO ---
     with st.expander("📋 Dados Base (Obrigatórios)", expanded=True):
         col_n, col_num = st.columns([3, 1])
         nome = col_n.text_input("Nome do Solicitante *")
@@ -188,11 +219,11 @@ elif st.session_state.pagina == "gerador":
         ce1, ce2, ce3 = st.columns(3)
         hoje = datetime.now()
         meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
-        dia_laudo = ce1.text_input("Dia", value=hoje.day)
+        dia_laudo = ce1.text_input("Dia", value=str(hoje.day).zfill(2))
+        dia_laudo = dia_laudo.zfill(2) if dia_laudo.isdigit() else dia_laudo
         mes_extenso = ce2.selectbox("Mês", meses, index=hoje.month - 1)
         ano_laudo = ce3.text_input("Ano", value=hoje.year)
 
-    # --- SESSÃO DE FOTOS (REFORMULADA PARA FLUÍDEZ) ---
     @st.fragment
     def sessao_fotos():
         st.header("📸 Registros")
@@ -214,10 +245,8 @@ elif st.session_state.pagina == "gerador":
         st.divider()
         st.subheader("Fotos dos Vícios")
         
-        # Upload em lote
         vicios_raw = st.file_uploader("Selecione as fotos *", accept_multiple_files=True, type=['jpg', 'jpeg', 'png', 'heic'], key="vicios")
         
-        # Botão para processar lote e evitar repetições
         if vicios_raw:
             if st.button("🔄 Adicionar Fotos ao Lote"):
                 for f in vicios_raw:
@@ -229,12 +258,14 @@ elif st.session_state.pagina == "gerador":
 
         ambientes_opcoes = ["Entrada", "Cozinha", "Área de serviço", "Varanda", "Sala de estar", "Dormitório 1", "Dormitório 2", "Dormitório 3", "Banheiro Social", "Banheiro Suíte", "Depósito"]
 
-        # Formulário para edição de legendas sem travar
         if st.session_state.lista_fotos_cache:
             with st.form("form_fotos"):
                 for idx, item in enumerate(st.session_state.lista_fotos_cache):
-                    col_img, col_amb, col_txt = st.columns([0.8, 1.5, 2])
-                    with col_img: st.image(item["foto"], use_container_width=True)
+                    col_img, col_amb, col_txt, col_btn = st.columns([1.0, 1.5, 2.0, 0.3])
+                    
+                    with col_img: 
+                        st.image(item["foto"], use_container_width=True)
+
                     with col_amb: 
                         st.session_state.lista_fotos_cache[idx]["ambiente"] = st.selectbox(
                             f"Ambiente ({item['nome']})", ambientes_opcoes, 
@@ -244,6 +275,10 @@ elif st.session_state.pagina == "gerador":
                         st.session_state.lista_fotos_cache[idx]["legenda"] = st.text_input(
                             f"Descrição do Vício *", value=item["legenda"], key=f"leg_{idx}"
                         )
+                    with col_btn:
+                        if st.form_submit_button("✕", help="Excluir Foto", key=f"del_{idx}"):
+                            st.session_state.lista_fotos_cache.pop(idx)
+                            st.rerun()
                     st.write("---")
                 
                 c_save, c_del = st.columns(2)
@@ -253,13 +288,11 @@ elif st.session_state.pagina == "gerador":
                     st.session_state.lista_fotos_cache = []
                     st.rerun()
         
-        # Exporta dados finais para o gerador
         lista_v_final = [x for x in st.session_state.lista_fotos_cache if x["legenda"] != ""]
         st.session_state.dados_fotos = {"capa": foto_capa, "lista": lista_v_final, "endereco": endereco_f}
 
     sessao_fotos()
 
-    # --- BOTÃO FINAL ---
     if st.button("🚀 GERAR LAUDO", use_container_width=True):
         f_dados = st.session_state.get("dados_fotos", {})
         foto_capa = f_dados.get("capa")
@@ -267,7 +300,7 @@ elif st.session_state.pagina == "gerador":
         endereco_f = f_dados.get("endereco", "")
 
         if not (nome and num_laudo and cpf_final and foto_capa and lista_v_final):
-            st.error("🚨 Preencha todos os campos obrigatórios e coloque descrições nas fotos (clique em Salvar).")
+            st.error("🚨 Preencha todos os campos obrigatórios.")
         else:
             try:
                 doc_tpl = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
