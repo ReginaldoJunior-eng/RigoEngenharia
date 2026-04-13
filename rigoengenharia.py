@@ -215,7 +215,12 @@ elif st.session_state.pagina == "gerador":
 
         st.write("**Data de Emissão do Laudo:**")
         ce1, ce2, ce3 = st.columns(3)
-        hoje = datetime.now()
+        from datetime import datetime, timedelta, timezone
+
+        # Ajusta para o fuso horário de Brasília (UTC-3)
+        fuso_brasilia = timezone(timedelta(hours=-3))
+        hoje = datetime.now(fuso_brasilia)
+
         meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
         dia_laudo = ce1.text_input("Dia", value=str(hoje.day).zfill(2))
         mes_extenso = ce2.selectbox("Mês", meses, index=hoje.month - 1)
@@ -246,10 +251,19 @@ elif st.session_state.pagina == "gerador":
         if vicios_raw:
             if st.button("🔄 Adicionar Fotos ao Lote"):
                 for f in vicios_raw:
+                    # Verifica se o arquivo já não foi adicionado para não duplicar
                     if not any(x['nome'] == f.name for x in st.session_state.lista_fotos_cache):
                         foto_p = processar_imagem(f)
                         if foto_p:
-                            st.session_state.lista_fotos_cache.append({"nome": f.name, "foto": foto_p, "ambiente": "Entrada", "legenda": ""})
+                            # Criamos um ID único para a KEY não bugar no 'X' de excluir
+                            id_vicio = f"{f.name}_{datetime.now().timestamp()}"
+                            st.session_state.lista_fotos_cache.append({
+                                "id_unico": id_vicio, 
+                                "nome": f.name, 
+                                "foto": foto_p, 
+                                "ambiente": "Entrada", 
+                                "legenda": ""
+                            })
                 st.rerun()
 
         ambientes_opcoes = ["Entrada", "Cozinha", "Área de serviço", "Varanda", "Sala de estar", "Dormitório 1", "Dormitório 2", "Dormitório 3", "Banheiro Social", "Banheiro Suíte", "Depósito"]
@@ -264,14 +278,21 @@ elif st.session_state.pagina == "gerador":
                         st.image(item["foto"], use_container_width=True)
 
                     with col_info: 
+                        # Usamos o id_unico na key para o Streamlit não perder a referência da legenda
                         st.session_state.lista_fotos_cache[idx]["ambiente"] = st.selectbox(
-                            f"Ambiente", ambientes_opcoes, 
-                            index=ambientes_opcoes.index(item["ambiente"]), key=f"amb_{idx}"
+                            "Ambiente", 
+                            ambientes_opcoes, 
+                            index=ambientes_opcoes.index(item["ambiente"]), 
+                            key=f"amb_{item['id_unico']}"
                         )
+                        
                         st.session_state.lista_fotos_cache[idx]["legenda"] = st.text_input(
-                            f"Descrição do Vício *", value=item["legenda"], key=f"leg_{idx}"
+                            "Descrição do Vício *", 
+                            value=item["legenda"], 
+                            key=f"leg_{item['id_unico']}"
                         )
-                        if st.form_submit_button("✕ Remover Foto", key=f"del_{idx}"):
+                        
+                        if st.form_submit_button("✕ Remover Foto", key=f"del_{item['id_unico']}"):
                             st.session_state.lista_fotos_cache.pop(idx)
                             st.rerun()
                     st.write("---")
