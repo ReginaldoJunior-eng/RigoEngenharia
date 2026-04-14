@@ -250,21 +250,26 @@ elif st.session_state.pagina == "gerador":
         
         if vicios_raw:
             if st.button("🔄 Adicionar Fotos ao Lote"):
-                for f in vicios_raw:
-                    # Verifica se o arquivo já não foi adicionado para não duplicar
-                    if not any(x['nome'] == f.name for x in st.session_state.lista_fotos_cache):
-                        foto_p = processar_imagem(f)
-                        if foto_p:
-                            # Criamos um ID único para a KEY não bugar no 'X' de excluir
-                            id_vicio = f"{f.name}_{datetime.now().timestamp()}"
-                            st.session_state.lista_fotos_cache.append({
-                                "id_unico": id_vicio, 
-                                "nome": f.name, 
-                                "foto": foto_p, 
-                                "ambiente": "Entrada", 
-                                "legenda": ""
-                            })
-                st.rerun()
+                with st.spinner("Processando e otimizando imagens..."):
+                    novas_fotos = []
+                    for f in vicios_raw:
+                        # Verifica se já existe para evitar duplicatas
+                        if not any(x['nome'] == f.name for x in st.session_state.lista_fotos_cache):
+                            foto_p = processar_imagem(f)
+                            if foto_p:
+                                id_vicio = f"{f.name}_{datetime.now().timestamp()}"
+                                novas_fotos.append({
+                                    "id_unico": id_vicio, 
+                                    "nome": f.name, 
+                                    "foto": foto_p, 
+                                    "ambiente": "Entrada", 
+                                    "legenda": ""
+                                })
+                    
+                    # Adiciona as novas fotos de uma vez ao estado da sessão
+                    if novas_fotos:
+                        st.session_state.lista_fotos_cache.extend(novas_fotos)
+                        st.rerun()
 
         ambientes_opcoes = ["Entrada", "Cozinha", "Área de serviço", "Varanda", "Sala de estar", "Dormitório 1", "Dormitório 2", "Dormitório 3", "Banheiro Social", "Banheiro Suíte", "Depósito"]
 
@@ -320,16 +325,29 @@ elif st.session_state.pagina == "gerador":
         else:
             try:
                 doc_tpl = DocxTemplate("LT_RIGO_001_2026-MODELO.docx")
+                
+                # Tratamento para garantir que as fotos sejam lidas corretamente como bytes
                 ctx = {
-                    "nome": nome, "cpf": cpf_final, "apartamento": apto, "torre": torre,
-                    "data_da_Vis": data_final, "Endereco": endereco_f,
-                    "dia_laudo": dia_laudo, "mes_laudo_extenso": mes_extenso, "ano": ano_laudo,
-                    "foto_fachada": InlineImage(doc_tpl, foto_capa, width=Mm(110)),
+                    "nome": nome, 
+                    "cpf": cpf_final, 
+                    "apartamento": apto, 
+                    "torre": torre,
+                    "data_da_Vis": data_final, 
+                    "Endereco": endereco_f,
+                    "dia_laudo": dia_laudo, 
+                    "mes_laudo_extenso": mes_extenso, 
+                    "ano": ano_laudo,
+                    "foto_fachada": InlineImage(doc_tpl, io.BytesIO(foto_capa) if isinstance(foto_capa, bytes) else foto_capa, width=Mm(110)),
                     "registros": [
-                        {"foto": InlineImage(doc_tpl, x["foto"], width=Mm(140)), "ambiente": x["ambiente"], "legenda": x["legenda"]} 
+                        {
+                            "foto": InlineImage(doc_tpl, io.BytesIO(x["foto"]) if isinstance(x["foto"], bytes) else x["foto"], width=Mm(140)), 
+                            "ambiente": x["ambiente"], 
+                            "legenda": x["legenda"]
+                        } 
                         for x in lista_v_final
                     ]
                 }
+                
                 doc_tpl.render(ctx)
                 
                 buffer_temp = io.BytesIO()
